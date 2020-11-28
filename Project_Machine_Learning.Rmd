@@ -1,0 +1,106 @@
+---
+title: "Project_Machine Learning"
+author: "Miguel Gutierrez"
+date: "27 de noviembre de 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+```
+## Summary
+
+In this report we evaluate the precision of the decision tree and random forest models for predicting the type of activity performed, the database is personal activities recorded by accelerometers in 4 different parts of the body on 6 participants. A data cleaning was performed by eliminating non-relevant variables, voids (NA), zeros. The decision tree and random forest models were implemented to make the predictions. The cross-validation was applied to the "classe" variable in the training data.
+
+## Loading data
+
+```{r warning=FALSE, echo=FALSE}
+library(caret)
+library(rattle)
+library(rpart)
+library(randomForest)
+```
+
+The training data for this project is available here:  
+[https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)  
+The test data is available here:  
+[https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)  
+The data for this project comes from this original source: [http://groupware.les.inf.puc-rio.br/har](http://groupware.les.inf.puc-rio.br/har).
+
+```{r}
+rawTrain <- read.csv(file = "pml-training.csv")
+dim(rawTrain)
+rawValid <- read.csv(file = "pml-testing.csv")
+dim(rawValid)
+#
+str(rawTrain)
+```
+
+## Procesing
+
+## Cleaning data
+
+```{r}
+# Selecting and removing columns with zeros
+dataTrain<- rawTrain[, colSums(is.na(rawTrain)) == 0]
+dim(dataTrain)
+dataValid <- rawValid[, colSums(is.na(rawValid)) == 0]
+dim(dataValid)
+# Selecting and removing empty columns
+noemptyCols <- colSums(dataTrain == "")
+dataTrain <- dataTrain[, -noemptyCols]
+dataValid <- dataValid[, -noemptyCols]
+# Removing columns not relevant [View str(rawTrain)]
+dataTrain <- dataTrain[, -c(1:7)]
+dim(dataTrain)
+dataValid <- dataValid[, -c(1:7)]
+dim(dataValid)
+# Selecting and removing the columns of near-zero variance
+NZV <- nearZeroVar(dataTrain, saveMetrics=TRUE)
+dataTrain <- dataTrain[, !NZV$nzv]
+dim(dataTrain)
+```
+
+## Splitting the training data
+
+the training data is splitted into 75% as train data (Training) and 25% as test data (Testing).
+
+```{r}
+set.seed(2020)
+inTrain <- createDataPartition(y=dataTrain$classe, p=0.75, list=FALSE)
+Training <- dataTrain[inTrain, ] 
+Testing <- dataTrain[-inTrain, ]
+dim(Training) 
+dim(Testing)
+```
+
+## Results: Predicts with Machine Learning algorithms
+
+### Decision Tree
+
+```{r}
+modelTree <- rpart(classe ~ ., data = Training, method = "class")
+fancyRpartPlot(modelTree)
+predictionsTree <- predict(modelTree, Testing, type = "class")
+# The cross-validation
+confusionMatrix(table(predictionsTree, Testing$classe))
+```
+
+Using cross-validation (confusion matrix), the first model has a precision of 0.9032 (90%), and the out-of-sample-error is 0.0968 (10%)..
+
+### Random Forest
+
+
+```{r warning= FALSE, error=FALSE}
+Training$classe <- factor(Training$classe)
+modelRF <- randomForest(classe ~. , data=Training)
+plot(modelRF,main="Model error of Random forest model by number of trees")
+predictionsRF <- predict(modelRF, Testing, type = "class")
+# The cross-validation
+confusionMatrix(table(predictionsRF, Testing$classe))
+```
+
+Using cross-validation (confusion matrix), the first model has a precision of 0.9949 (99,5%), and the out-of-sample-error is 0.0051 (0.5%). This means that the outcome class will not be predicted very well by the other predictors.
+
+## Conclusions
+According to the results of both models we have that the random model has better results to predict than the decision Tree, the Accurance is 99,5% > 90% and the out-sample-error is 0.5% < 10%.
